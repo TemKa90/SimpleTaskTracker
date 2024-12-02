@@ -5,7 +5,7 @@ class Simple_Task_Tracker {
 		// Hooks and filters
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'init', array( $this, 'register_post_type' ) );
-		add_action('admin_post_delete_task', array($this, 'delete_task'));
+		add_action( 'admin_post_delete_task', array( $this, 'delete_task' ) );
 	}
 
 	public function run() {
@@ -40,15 +40,53 @@ class Simple_Task_Tracker {
 		echo '<a href="' . admin_url( 'post-new.php?post_type=task' ) . '" class="page-title-action">Add Task</a>';
 		// Display tasks table
 		$this->display_tasks_table();
+		// Add styles and scripts
+		$this->add_progress_bar_styles_and_scripts();
+	}
+
+	public function add_progress_bar_styles_and_scripts() {
+		?>
+        <style>
+            .progress-bar-container {
+                width: 100%;
+                background-color: #e0e0e0;
+                border-radius: 5px;
+                overflow: hidden;
+            }
+
+            .progress-bar {
+                height: 20px;
+                background-color: #76c7c0;
+                width: 0;
+                transition: width 0.3s;
+            }
+        </style>
+        <script>
+            function updateProgressBar(selector, percentage) {
+                const progressBar = document.querySelector(selector);
+                progressBar.style.width = percentage + '%';
+            }
+
+            // Пример использования
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('.progress-bar').forEach(function (bar) {
+                    const percentage = bar.style.width;
+                    console.log('percentage:' + percentage);
+                    updateProgressBar(bar, percentage);
+                });
+            });
+        </script>
+		<?php
 	}
 
 	public function display_tasks_table() {
 		// Code to display the tasks table
-		$args  = array(
+		$args     = array(
 			'post_type'      => 'task',
 			'posts_per_page' => - 1,
 		);
-		$query = new WP_Query( $args );
+		$query    = new WP_Query( $args );
+		$progress = get_post_meta( get_the_ID(), 'progress', true );
 
 		if ( $query->have_posts() ) {
 			echo '<table class="widefat fixed" cellspacing="0">';
@@ -61,7 +99,12 @@ class Simple_Task_Tracker {
 				echo '<td>' . get_the_term_list( get_the_ID(), 'status', '', ', ' ) . '</td>';
 				echo '<td>' . get_the_term_list( get_the_ID(), 'priority', '', ', ' ) . '</td>';
 				echo '<td>' . get_the_term_list( get_the_ID(), 'categories', '', ', ' ) . '</td>';
-				echo '<td>' . get_post_meta( get_the_ID(), 'progress', true ) . '</td>';
+				//echo '<td>' . get_post_meta( get_the_ID(), 'progress', true ) . '</td>';
+				echo '<td>';
+				echo '<div class="progress-bar-container">';
+				echo '<div class="progress-bar" style="width: ' . esc_attr( $progress ) . '%;">' . esc_attr__( $progress ) . '</div>';
+				echo '</div>';
+				echo '</td>';
 				echo '<td>' . get_post_meta( get_the_ID(), 'due_date', true ) . '</td>';
 				echo '<td>' . get_the_date() . '</td>';
 				echo '<td>';
@@ -70,6 +113,7 @@ class Simple_Task_Tracker {
 				echo '</td>';
 				echo '</tr>';
 			}
+
 			echo '</tbody></table>';
 		} else {
 			echo 'No tasks found.';
@@ -146,4 +190,6 @@ class Simple_Task_Tracker {
 		);
 		register_post_type( 'task', $args );
 	}
+
+
 }
