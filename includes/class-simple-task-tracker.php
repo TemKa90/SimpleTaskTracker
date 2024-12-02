@@ -5,6 +5,7 @@ class Simple_Task_Tracker {
 		// Hooks and filters
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'init', array( $this, 'register_post_type' ) );
+		add_action('admin_post_delete_task', array($this, 'delete_task'));
 	}
 
 	public function run() {
@@ -51,7 +52,7 @@ class Simple_Task_Tracker {
 
 		if ( $query->have_posts() ) {
 			echo '<table class="widefat fixed" cellspacing="0">';
-			echo '<thead><tr><th>Name</th><th>Status</th><th>Priority</th><th>Categories</th><th>Progress</th><th>Due Date</th><th>Created At</th></tr></thead>';
+			echo '<thead><tr><th>Name</th><th>Status</th><th>Priority</th><th>Categories</th><th>Progress</th><th>Due Date</th><th>Created At</th><th>Actions</th></tr></thead>';
 			echo '<tbody>';
 			while ( $query->have_posts() ) {
 				$query->the_post();
@@ -63,6 +64,10 @@ class Simple_Task_Tracker {
 				echo '<td>' . get_post_meta( get_the_ID(), 'progress', true ) . '</td>';
 				echo '<td>' . get_post_meta( get_the_ID(), 'due_date', true ) . '</td>';
 				echo '<td>' . get_the_date() . '</td>';
+				echo '<td>';
+				echo '<a href="' . get_edit_post_link( get_the_ID() ) . '">Edit</a> | ';
+				echo '<a href="' . wp_nonce_url( admin_url( 'admin-post.php?action=delete_task&post=' . get_the_ID() ), 'delete_task_' . get_the_ID() ) . '">Delete</a>';
+				echo '</td>';
 				echo '</tr>';
 			}
 			echo '</tbody></table>';
@@ -70,6 +75,26 @@ class Simple_Task_Tracker {
 			echo 'No tasks found.';
 		}
 		wp_reset_postdata();
+	}
+
+
+	public function delete_task() {
+		if ( ! isset( $_GET['post'] ) || ! isset( $_GET['_wpnonce'] ) ) {
+			return;
+		}
+
+		$post_id = intval( $_GET['post'] );
+		if ( ! current_user_can( 'delete_post', $post_id ) ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( $_GET['_wpnonce'], 'delete_task_' . $post_id ) ) {
+			return;
+		}
+
+		wp_delete_post( $post_id );
+		wp_redirect( admin_url( 'admin.php?page=simple-task-tracker' ) );
+		exit;
 	}
 
 	public function register_post_type() {
