@@ -306,18 +306,31 @@ class Simple_Task_Tracker {
 			while ( $query->have_posts() ) {
 				$query->the_post();
 				echo '<tr>';
+                // Name
 				echo '<td>' . get_the_title() . '</td>';
+                // Status
 				echo '<td>' . get_the_term_list( get_the_ID(), 'status', '', ', ' ) . '</td>';
+                // Priority
 				echo '<td>' . get_the_term_list( get_the_ID(), 'priority', '', ', ' ) . '</td>';
+                // Categories
 				echo '<td>' . get_the_term_list( get_the_ID(), 'categories', '', ', ' ) . '</td>';
+                // Progress
 				//echo '<td>' . get_post_meta( get_the_ID(), 'progress', true ) . '</td>';
 				echo '<td>';
 				echo '<div class="progress-bar-container">';
 				echo '<div class="progress-bar" style="width: ' . esc_attr( $progress ) . '%;">' . esc_attr__( $progress ) . '</div>';
 				echo '</div>';
 				echo '</td>';
-				echo '<td>' . get_post_meta( get_the_ID(), 'due_date', true ) . '</td>';
-				echo '<td>' . get_the_date() . '</td>';
+				// Due Date
+				$due_date = get_post_meta( get_the_ID(), 'due_date', true );
+				$due_date_formatted = date_i18n( 'd.m.Y', strtotime( $due_date ) );
+				echo '<td>' . $due_date_formatted . '</td>';
+
+				// Created At
+				$created_at = get_the_date( 'Y-m-d' );
+				$created_at_formatted = date_i18n( 'd.m.Y', strtotime( $created_at ) );
+				echo '<td>' . $created_at_formatted . '</td>';
+
 				echo '<td>';
 				echo '<a href="#" class="edit-task" data-task-id="' . get_the_ID() . '">Edit</a> | ';
 				echo '<a href="' . wp_nonce_url( admin_url( 'admin-post.php?action=delete_task&post=' . get_the_ID() ), 'delete_task_' . get_the_ID() ) . '">Delete</a>';
