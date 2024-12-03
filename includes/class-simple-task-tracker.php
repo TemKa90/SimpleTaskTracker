@@ -3,11 +3,14 @@
 class Simple_Task_Tracker {
 	public function __construct() {
 		// Hooks and filters
-		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
-		add_action( 'init', array( $this, 'register_post_type' ) );
-		add_action( 'admin_post_delete_task', array( $this, 'delete_task' ) );
+		add_action('admin_menu', array($this, 'add_admin_menu'));
+		add_action('init', array($this, 'register_post_type'));
+		add_action('admin_post_delete_task', array($this, 'delete_task'));
 		add_action('wp_ajax_add_task', array($this, 'add_task'));
+		add_action('wp_ajax_save_task', array($this, 'save_task'));
+		add_action('wp_ajax_get_task_data', array($this, 'get_task_data'));
 	}
+
 
 	public function run() {
 		// Initialization code
@@ -84,12 +87,73 @@ class Simple_Task_Tracker {
 		}
 	}
 
+	public function get_task_data() {
+		if (!isset($_POST['task_id'])) {
+			wp_send_json_error('No task ID provided.');
+		}
+
+		$task_id = intval($_POST['task_id']);
+		$task = get_post($task_id);
+
+		if (!$task) {
+			wp_send_json_error('Task not found.');
+		}
+
+		$data = array(
+			'title' => $task->post_title,
+			'progress' => get_post_meta($task_id, 'progress', true),
+			'due_date' => get_post_meta($task_id, 'due_date', true),
+			'status' => wp_get_post_terms($task_id, 'status', array('fields' => 'ids'))[0],
+			'priority' => wp_get_post_terms($task_id, 'priority', array('fields' => 'ids'))[0],
+			'categories' => wp_get_post_terms($task_id, 'categories', array('fields' => 'ids'))
+		);
+
+		wp_send_json_success($data);
+	}
+
+	public function save_task() {
+		if (!isset($_POST['data'])) {
+			wp_send_json_error('No data provided.');
+		}
+
+		parse_str($_POST['data'], $data);
+		$task_id = intval($data['task_id']);
+		$task_title = sanitize_text_field($data['task_title']);
+		$task_progress = sanitize_text_field($data['task_progress']);
+		$task_due_date = sanitize_text_field($data['task_due_date']);
+		$task_status = intval($data['task_status']);
+		$task_priority = intval($data['task_priority']);
+		$task_categories = isset($data['task_categories']) ? array_map('intval', $data['task_categories']) : array();
+
+		$post_data = array(
+			'ID' => $task_id,
+			'post_title' => $task_title,
+			'meta_input' => array(
+				'progress' => $task_progress,
+				'due_date' => $task_due_date
+			),
+			'tax_input' => array(
+				'status' => array($task_status),
+				'priority' => array($task_priority),
+				'categories' => $task_categories
+			)
+		);
+
+		$post_id = wp_update_post($post_data);
+
+		if (is_wp_error($post_id)) {
+			wp_send_json_error('Error saving task.');
+		} else {
+			wp_send_json_success('Task saved successfully.');
+		}
+	}
 
 	public function add_popup_html() {
 		?>
         <div id="task-popup" style="display:none;">
-            <h2>Add New Task</h2>
+            <h2 id="popup-title">Add New Task</h2>
             <form id="task-form">
+                <input type="hidden" id="task-id" name="task_id" />
                 <label for="task-title">Title</label>
                 <input type="text" id="task-title" name="task_title" required />
                 <label for="task-progress">Progress (%)</label>
@@ -131,6 +195,7 @@ class Simple_Task_Tracker {
 	}
 
 
+
 	public function add_progress_bar_styles_and_scripts() {
 		?>
         <style>
@@ -161,6 +226,8 @@ class Simple_Task_Tracker {
         <script>
             jQuery(document).ready(function($) {
                 $('#add-task-button').click(function() {
+                    $('#popup-title').text('Add New Task');
+                    $('#task-form')[0].reset();
                     $('#task-popup').show();
                 });
 
@@ -168,23 +235,50 @@ class Simple_Task_Tracker {
                     $('#task-popup').hide();
                 });
 
-                $('#task-form').submit(function(e) {
+                $('.edit-task').click(function(e) {
                     e.preventDefault();
-                    var formData = $(this).serialize();
-
+                    var taskId = $(this).data('task-id');
+                    $('#popup-title').text('Edit Task');
+                    $('#task-id').val(taskId);
                     $.ajax({
                         url: ajaxurl,
                         type: 'POST',
                         data: {
-                            action: 'add_task',
+                            action: 'get_task_data',
+                            task_id: taskId
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $('#task-title').val(response.data.title);
+                                $('#task-progress').val(response.data.progress);
+                                $('#task-due-date').val(response.data.due_date);
+                                $('#task-status').val(response.data.status);
+                                $('#task-priority').val(response.data.priority);
+                                $('#task-categories').val(response.data.categories);
+                                $('#task-popup').show();
+                            } else {
+                                alert('Error loading task data.');
+                            }
+                        }
+                    });
+                });
+
+                $('#task-form').submit(function(e) {
+                    e.preventDefault();
+                    var formData = $(this).serialize();
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'save_task',
                             data: formData
                         },
                         success: function(response) {
                             if (response.success) {
-                                //alert('Task added successfully!');
+                                alert('Task saved successfully!');
                                 location.reload();
                             } else {
-                                alert('Error adding task.');
+                                alert('Error saving task.');
                             }
                         }
                     });
@@ -193,6 +287,7 @@ class Simple_Task_Tracker {
         </script>
 		<?php
 	}
+
 
 
 	public function display_tasks_table() {
@@ -224,7 +319,7 @@ class Simple_Task_Tracker {
 				echo '<td>' . get_post_meta( get_the_ID(), 'due_date', true ) . '</td>';
 				echo '<td>' . get_the_date() . '</td>';
 				echo '<td>';
-				echo '<a href="' . get_edit_post_link( get_the_ID() ) . '">Edit</a> | ';
+				echo '<a href="#" class="edit-task" data-task-id="' . get_the_ID() . '">Edit</a> | ';
 				echo '<a href="' . wp_nonce_url( admin_url( 'admin-post.php?action=delete_task&post=' . get_the_ID() ), 'delete_task_' . get_the_ID() ) . '">Delete</a>';
 				echo '</td>';
 				echo '</tr>';
