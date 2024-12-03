@@ -6,6 +6,7 @@ class Simple_Task_Tracker {
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'init', array( $this, 'register_post_type' ) );
 		add_action( 'admin_post_delete_task', array( $this, 'delete_task' ) );
+		add_action('wp_ajax_add_task', array($this, 'add_task'));
 	}
 
 	public function run() {
@@ -37,11 +38,61 @@ class Simple_Task_Tracker {
 		// Code to display the task overview page
 		echo '<h1>Task Overview</h1>';
 		// Add Task button
-		echo '<a href="' . admin_url( 'post-new.php?post_type=task' ) . '" class="page-title-action">Add Task</a>';
+		echo '<button id="add-task-button" class="page-title-action">Add Task</button>';
 		// Display tasks table
 		$this->display_tasks_table();
 		// Add styles and scripts
 		$this->add_progress_bar_styles_and_scripts();
+		// Add popup HTML
+		$this->add_popup_html();
+	}
+
+	public function add_task() {
+		if (!isset($_POST['data'])) {
+			wp_send_json_error('No data provided.');
+		}
+
+		parse_str($_POST['data'], $data);
+
+		$task_title = sanitize_text_field($data['task_title']);
+		$task_progress = sanitize_text_field($data['task_progress']);
+		$task_due_date = sanitize_text_field($data['task_due_date']);
+
+		$post_data = array(
+			'post_title' => $task_title,
+			'post_type' => 'task',
+			'post_status' => 'publish',
+			'meta_input' => array(
+				'progress' => $task_progress,
+				'due_date' => $task_due_date
+			)
+		);
+
+		$post_id = wp_insert_post($post_data);
+
+		if (is_wp_error($post_id)) {
+			wp_send_json_error('Error adding task.');
+		} else {
+			wp_send_json_success('Task added successfully.');
+		}
+	}
+
+	public function add_popup_html() {
+		?>
+        <div id="task-popup" style="display:none;">
+            <h2>Add New Task</h2>
+            <form id="task-form">
+                <label for="task-title">Title</label>
+                <input type="text" id="task-title" name="task_title" required />
+                <label for="task-progress">Progress (%)</label>
+                <input type="number" id="task-progress" name="task_progress" min="0" max="100" />
+                <label for="task-due-date">Due Date</label>
+                <input type="date" id="task-due-date" name="task_due_date" />
+                <button type="submit">Save Task</button>
+            </form>
+            <button id="close-popup">Close</button>
+        </div>
+		<?php
 	}
 
 	public function add_progress_bar_styles_and_scripts() {
@@ -53,31 +104,60 @@ class Simple_Task_Tracker {
                 border-radius: 5px;
                 overflow: hidden;
             }
-
             .progress-bar {
                 height: 20px;
                 background-color: #76c7c0;
                 width: 0;
                 transition: width 0.3s;
             }
+            #task-popup {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                padding: 20px;
+                border: 1px solid #ccc;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+            }
         </style>
         <script>
-            function updateProgressBar(selector, percentage) {
-                const progressBar = document.querySelector(selector);
-                progressBar.style.width = percentage + '%';
-            }
+            jQuery(document).ready(function($) {
+                $('#add-task-button').click(function() {
+                    $('#task-popup').show();
+                });
 
-            // Пример использования
-            document.addEventListener('DOMContentLoaded', function () {
-                document.querySelectorAll('.progress-bar').forEach(function (bar) {
-                    const percentage = bar.style.width;
-                    console.log('percentage:' + percentage);
-                    updateProgressBar(bar, percentage);
+                $('#close-popup').click(function() {
+                    $('#task-popup').hide();
+                });
+
+                $('#task-form').submit(function(e) {
+                    e.preventDefault();
+                    var formData = $(this).serialize();
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'add_task',
+                            data: formData
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                //alert('Task added successfully!');
+                                location.reload();
+                            } else {
+                                alert('Error adding task.');
+                            }
+                        }
+                    });
                 });
             });
         </script>
 		<?php
 	}
+
 
 	public function display_tasks_table() {
 		// Code to display the tasks table
