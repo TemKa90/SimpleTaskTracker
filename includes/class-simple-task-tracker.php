@@ -53,10 +53,12 @@ class Simple_Task_Tracker {
 		}
 
 		parse_str($_POST['data'], $data);
-
 		$task_title = sanitize_text_field($data['task_title']);
 		$task_progress = sanitize_text_field($data['task_progress']);
 		$task_due_date = sanitize_text_field($data['task_due_date']);
+		$task_status = intval($data['task_status']);
+		$task_priority = intval($data['task_priority']);
+		$task_categories = isset($data['task_categories']) ? array_map('intval', $data['task_categories']) : array();
 
 		$post_data = array(
 			'post_title' => $task_title,
@@ -65,6 +67,11 @@ class Simple_Task_Tracker {
 			'meta_input' => array(
 				'progress' => $task_progress,
 				'due_date' => $task_due_date
+			),
+			'tax_input' => array(
+				'status' => array($task_status),
+				'priority' => array($task_priority),
+				'categories' => $task_categories
 			)
 		);
 
@@ -77,6 +84,7 @@ class Simple_Task_Tracker {
 		}
 	}
 
+
 	public function add_popup_html() {
 		?>
         <div id="task-popup" style="display:none;">
@@ -88,12 +96,40 @@ class Simple_Task_Tracker {
                 <input type="number" id="task-progress" name="task_progress" min="0" max="100" />
                 <label for="task-due-date">Due Date</label>
                 <input type="date" id="task-due-date" name="task_due_date" />
+                <label for="task-status">Status</label>
+                <select id="task-status" name="task_status">
+					<?php
+					$statuses = get_terms(array('taxonomy' => 'status', 'hide_empty' => false));
+					foreach ($statuses as $status) {
+						echo '<option value="' . esc_attr($status->term_id) . '">' . esc_html($status->name) . '</option>';
+					}
+					?>
+                </select>
+                <label for="task-priority">Priority</label>
+                <select id="task-priority" name="task_priority">
+					<?php
+					$priorities = get_terms(array('taxonomy' => 'priority', 'hide_empty' => false));
+					foreach ($priorities as $priority) {
+						echo '<option value="' . esc_attr($priority->term_id) . '">' . esc_html($priority->name) . '</option>';
+					}
+					?>
+                </select>
+                <label for="task-categories">Categories</label>
+                <select id="task-categories" name="task_categories[]" multiple>
+					<?php
+					$categories = get_terms(array('taxonomy' => 'categories', 'hide_empty' => false));
+					foreach ($categories as $category) {
+						echo '<option value="' . esc_attr($category->term_id) . '">' . esc_html($category->name) . '</option>';
+					}
+					?>
+                </select>
                 <button type="submit">Save Task</button>
             </form>
             <button id="close-popup">Close</button>
         </div>
 		<?php
 	}
+
 
 	public function add_progress_bar_styles_and_scripts() {
 		?>
