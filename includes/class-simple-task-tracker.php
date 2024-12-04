@@ -92,8 +92,8 @@ class Simple_Task_Tracker {
             <form id="task-form">
                 <label for="task-title">Title</label>
                 <input type="text" id="task-title" name="task_title" required />
-                <label for="task-progress">Progress (%)</label>
-                <input type="number" id="task-progress" name="task_progress" min="0" max="100" />
+<!--                <label for="task-progress">Progress (%)</label>-->
+<!--                <input type="number" id="task-progress" name="task_progress" min="0" max="100" />-->
                 <label for="task-due-date">Due Date</label>
                 <input type="date" id="task-due-date" name="task_due_date" />
                 <label for="task-status">Status</label>
@@ -206,7 +206,7 @@ class Simple_Task_Tracker {
 
 		if ( $query->have_posts() ) {
 			echo '<table class="widefat fixed" cellspacing="0">';
-			echo '<thead><tr><th>Name</th><th>Status</th><th>Priority</th><th>Categories</th><th>Progress</th><th>Due Date</th><th>Created At</th><th>Actions</th></tr></thead>';
+			echo '<thead><tr><th>Name</th><th>Status</th><th>Priority</th><th>Categories</th><th>Due Date</th><th>Created At</th><th>Actions</th></tr></thead>';
 			echo '<tbody>';
 			while ( $query->have_posts() ) {
 				$query->the_post();
@@ -216,11 +216,11 @@ class Simple_Task_Tracker {
 				echo '<td>' . get_the_term_list( get_the_ID(), 'priority', '', ', ' ) . '</td>';
 				echo '<td>' . get_the_term_list( get_the_ID(), 'categories', '', ', ' ) . '</td>';
 				//echo '<td>' . get_post_meta( get_the_ID(), 'progress', true ) . '</td>';
-				echo '<td>';
-				echo '<div class="progress-bar-container">';
-				echo '<div class="progress-bar" style="width: ' . esc_attr( $progress ) . '%;">' . esc_attr__( $progress ) . '</div>';
-				echo '</div>';
-				echo '</td>';
+//				echo '<td>';
+//				echo '<div class="progress-bar-container">';
+//				echo '<div class="progress-bar" style="width: ' . esc_attr( $progress ) . '%;">' . esc_attr__( $progress ) . '</div>';
+//				echo '</div>';
+//				echo '</td>';
 				echo '<td>' . get_post_meta( get_the_ID(), 'due_date', true ) . '</td>';
 				echo '<td>' . get_the_date() . '</td>';
 				echo '<td>';
